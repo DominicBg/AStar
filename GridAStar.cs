@@ -6,11 +6,14 @@ using System.Threading.Tasks;
 
 namespace AStar
 {
-    public class GridAStar
+    public class GridAStar<T>
     {
-        public char[,] map;
+        public T[,] map;
         public int width;
         public int heigth;
+        public bool showPosition = true;
+        public bool showGrid = false;
+        public Vector2 goalPosition;
 
         public GridAStar(bool printDetails)
         {
@@ -18,27 +21,28 @@ namespace AStar
         }
         public GridAStar(){}
 
-        public char GetMap(Vector2 position)
+        public T GetMap(Vector2 position)
         {
             return GetMap(position.x, position.y);
         }
-        public char GetMap(int x, int y)
+        public T GetMap(int x, int y)
         {
-            return map[y, x];
+            return map[x, y];
         }
 
-        public List<Vector2> FindPath(Vector2 startPosition, Vector2 endPosition, char[,] map, char[] collisions)
+        public List<Vector2> FindPath(Vector2 startPosition, Vector2 endPosition, T[,] map, T[] collisions)
         {
             this.map = map;
             width = map.GetLength(1);
             heigth = map.GetLength(0);
 
-            GridWorld world = new GridWorld(map, collisions, this);
-            GridState initialState = new GridState(startPosition, this);
-
-            GridGoal goal = new GridGoal(endPosition);
-
-            GridHeuristic heuristic = new GridHeuristic(goal);
+            GridWorld<T> world = new GridWorld<T>(map, collisions, this);
+            GridState<T> initialState = new GridState<T>(startPosition, this);
+           // Console.WriteLine(initialState.ToString());
+            
+            GridGoal<T> goal = new GridGoal<T>(endPosition);
+            goalPosition = endPosition;
+            GridHeuristic<T> heuristic = new GridHeuristic<T>(goal);
 
             List<Operation> operations = AStarGenerator.GeneratePlan(world, initialState, goal, heuristic);
             //Si pas de chemin
@@ -56,11 +60,11 @@ namespace AStar
         }
     }
 
-    public class GridWorld : World
+    public class GridWorld<T> : World
     {
-        char[,] map;
-        char[] collisions;
-        GridAStar gridAStar;
+        T[,] map;
+        T[] collisions;
+        GridAStar<T> gridAStar;
 
         Vector2[] directions =
         {
@@ -70,7 +74,7 @@ namespace AStar
             new Vector2(0,-1),
         };
 
-        public GridWorld(char[,] map, char[] collisions, GridAStar gridAStar)
+        public GridWorld(T[,] map, T[] collisions, GridAStar<T> gridAStar)
         {
             this.map = map;
             this.collisions = collisions;
@@ -80,16 +84,16 @@ namespace AStar
         //Genere les autres states possibles
         public override State Executer(State state, Operation a)
         {
-            GridState gridState = (GridState)state;
+            GridState<T> gridState = (GridState<T>)state;
             GridOperation gridAction = (GridOperation)a;
 
-            return new GridState(gridState.position + gridAction.direction, gridAStar);
+            return new GridState<T>(gridState.position + gridAction.direction, gridAStar);
         }
 
         //Genere les direction possibles pour aller au autres place
         public override List<Operation> GetActions(State state)
         {
-            GridState gridState = (GridState)state;
+            GridState<T> gridState = (GridState<T>)state;
             List<Operation> operations = new List<Operation>();
             for (int i = 0; i < directions.Length; i++)
             {
@@ -104,10 +108,10 @@ namespace AStar
 
         bool HasCollision(Vector2 position)
         {
-            char currentChar = gridAStar.GetMap(position);
+            T currentCollision = gridAStar.GetMap(position);
             for (int i = 0; i < collisions.Length; i++)
             {
-                if (currentChar == collisions[i])
+                if (currentCollision.Equals(collisions[i]))
                     return true;
             }
             return false;
@@ -115,7 +119,7 @@ namespace AStar
 
         bool InBound(Vector2 position)
         {
-            return position.x > 0 && position.y > 0 && position.x < gridAStar.width && position.y < gridAStar.heigth;
+            return position.x >= 0 && position.y >= 0 && position.x < gridAStar.width && position.y < gridAStar.heigth;
         }
     }
 
@@ -134,12 +138,12 @@ namespace AStar
         }
     }
 
-    public class GridState : State
+    public class GridState<T> : State
     {
         public Vector2 position;
-        GridAStar gridAStar;
+        GridAStar<T> gridAStar;
 
-        public GridState(Vector2 position, GridAStar gridAStar)
+        public GridState(Vector2 position, GridAStar<T> gridAStar)
         {
             this.position = position;
             this.gridAStar = gridAStar;
@@ -147,8 +151,8 @@ namespace AStar
 
         public override int CompareTo(State other)
         {
-            GridState otherState = (GridState)other;
-            if (f == other.f)
+            GridState<T> otherState = (GridState<T>)other;
+            if (f == other.f && position == otherState.position)
                 return 0;
             else if (f > other.f)
                 return 1;
@@ -158,7 +162,7 @@ namespace AStar
 
         public override bool Equals(object obj)
         {
-            var state = obj as GridState;
+            var state = obj as GridState<T>;
             return state != null && (position == state.position);
         }
 
@@ -170,40 +174,42 @@ namespace AStar
         public override string ToString()
         {
             string stringMap = "";
-            for (int i = 0; i < gridAStar.map.GetLength(0); i++)
+            if (gridAStar.showGrid)
             {
-                for (int j = 0; j < gridAStar.map.GetLength(1); j++)
+                for (int i = 0; i < gridAStar.map.GetLength(0); i++)
                 {
-                    if (j == position.x && i == position.y)
-                        stringMap += "X";
-                    else
-                        stringMap += gridAStar.map[i, j];
+                    for (int j = 0; j < gridAStar.map.GetLength(1); j++)
+                    {
+                        if (j == position.x && i == position.y)
+                            stringMap += "X";
+                        else
+                            stringMap += gridAStar.map[i, j];
 
+                    }
+                    stringMap += "\n";
                 }
-                stringMap += "\n";
             }
-
-            return stringMap;
+            return ((gridAStar.showPosition) ? position.ToString() : " ") + "\n" + stringMap;
         }
     }
 
-    public class GridHeuristic : Heuristic
+    public class GridHeuristic<T> : Heuristic
     {
-        GridGoal gridGoal;
+        GridGoal<T> gridGoal;
 
-        public GridHeuristic(GridGoal gridGoal)
+        public GridHeuristic(GridGoal<T> gridGoal)
         {
             this.gridGoal = gridGoal;
         }
 
         public override double EstimateCost(State state)
         {
-            GridState gridState = (GridState)state;
+            GridState<T> gridState = (GridState<T>)state;
             return Vector2.ManhattanDistance(gridState.position, gridGoal.endPosition);
         }
     }
 
-    public class GridGoal : Goal
+    public class GridGoal<T> : Goal
     {
         public Vector2 endPosition;
 
@@ -214,7 +220,7 @@ namespace AStar
 
         public override bool GoalSatisfied(State state)
         {
-            GridState gridState = (GridState)state;
+            GridState<T> gridState = (GridState<T>)state;
             return gridState.position == endPosition;
         }
     }

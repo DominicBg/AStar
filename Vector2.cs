@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LHGames.Helper;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,12 @@ public class Vector2
     {
         this.x = x;
         this.y = y;
+    }
+
+    public Vector2(Point point)
+    {
+        x = point.X;
+        y = point.Y;
     }
 
     public static bool operator ==(Vector2 v1, Vector2 v2)
@@ -69,4 +76,6 @@ public class Vector2
     {
         return Math.Abs(v1.x - v2.x) + Math.Abs(v1.y - v2.y);
     }
+
+
 }
